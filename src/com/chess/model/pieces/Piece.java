@@ -24,6 +24,11 @@ public abstract class Piece
         return row >= 0 && row <= 7 && col >= 0 && col <= 7;
     }
 
+    public boolean isOpponent(Piece other) 
+    {
+        return other != null && this.color != other.color;
+    }
+
     public abstract List<Move> getLegalMoves(Board board);
     {
         //Override
@@ -46,11 +51,6 @@ public abstract class Piece
     public Square getPosition() 
     {
         return position;
-    }
-
-    public boolean isOpponent(Piece other) 
-    {
-        return other != null && this.color != other.color;
     }
 
     public void setHasMoved() 

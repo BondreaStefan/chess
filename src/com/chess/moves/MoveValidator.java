@@ -15,7 +15,6 @@ public class MoveValidator
         Square to = move.getTo();
         Piece movingPiece = move.getPiece();
         Piece capturedPiece = to.getOccupant();
-
         List<Move> legalMoves;
         if(movingPiece instanceof com.chess.model.pieces.King)
         {

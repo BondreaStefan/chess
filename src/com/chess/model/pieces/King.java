@@ -26,14 +26,8 @@ public class King extends Piece
     {
         List<Move> moves = new ArrayList<>();
         int[][] offsets = {
-            { 1,  0},
-            {-1,  0},
-            { 0,  1},
-            { 0, -1},
-            { 1,  1},
-            { 1, -1},
-            {-1,  1},
-            {-1, -1}
+            { 1,  0}, {-1,  0}, { 0,  1}, { 0, -1},
+            { 1,  1}, { 1, -1}, {-1,  1}, {-1, -1}
         };
 
         for(int[] offset : offsets)

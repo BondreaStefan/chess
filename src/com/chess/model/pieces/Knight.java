@@ -44,10 +44,6 @@ public class Knight extends Piece
                     {
                         moves.add(new Move(this, this.position, destination, true));
                     }
-                    else
-                    {
-                        // Friendly piece, can't move there
-                    }
                 }
                 else 
                 {
@@ -55,7 +51,6 @@ public class Knight extends Piece
                 }
             }
         }
-
         return moves;
     }
 }
