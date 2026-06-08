@@ -29,6 +29,15 @@ public class MoveValidator
         {
             if(legalMove.getTo().getRow() == move.getTo().getRow() && legalMove.getTo().getCol() == move.getTo().getCol())
             {
+                Square epSquare = null;
+                Piece epCaptured = null;
+                if(legalMove.isEnPassant())
+                {
+                    epSquare = board.getSquare(from.getRow(), to.getCol());
+                    epCaptured = epSquare.getOccupant();
+                    epSquare.setOccupant(null);
+                }
+
                 to.setOccupant(movingPiece);
                 from.setOccupant(null);
                 movingPiece.setPosition(to);
@@ -38,6 +47,11 @@ public class MoveValidator
                 from.setOccupant(movingPiece);
                 to.setOccupant(capturedPiece);
                 movingPiece.setPosition(from);
+
+                if(epSquare != null)
+                {
+                    epSquare.setOccupant(epCaptured);
+                }
 
                 return !inCheck;
             }
