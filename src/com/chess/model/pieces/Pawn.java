@@ -25,14 +25,13 @@ public class Pawn extends Piece
     {
         List<Move> moves = new ArrayList<>();
         int direction = color == Color.WHITE ? 1 : -1;
-        boolean hasMoved = false;
 
         // Forward move
         int newRow = position.getRow() + direction;
         if(isInBounds(newRow, position.getCol()) && !board.getSquare(newRow, position.getCol()).isOccupied())
         {
             moves.add(new Move(this, this.position, board.getSquare(newRow, position.getCol()), false));
-            if(!hasMoved)
+            if(!this.hasMoved)
             {
                 newRow += direction;
                 if(isInBounds(newRow, position.getCol()) && !board.getSquare(newRow, position.getCol()).isOccupied())
