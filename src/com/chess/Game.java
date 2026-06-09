@@ -8,7 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.chess.input.ConsoleInputHandler;
 import com.chess.input.InputHandler;
 import com.chess.model.Board;
 import com.chess.model.Color;
@@ -29,12 +28,12 @@ public class Game
     private Map<String, Integer> positionCount = new HashMap<>();
     private int halfMoveClock = 0;
 
-    public Game()
+    public Game(InputHandler inputHandler)
     {
         board = new Board();
         board.setupInitialPosition();
         moveValidator = new MoveValidator();
-        inputHandler = new ConsoleInputHandler();
+        this.inputHandler = inputHandler;
         consoleRenderer = new ConsoleRenderer();
         currentTurn = Color.WHITE;
         state = GameState.PLAYING;

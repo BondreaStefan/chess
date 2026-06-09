@@ -17,12 +17,20 @@ public class LedController
 
     public void connect()
     {
-        // deschide portul serial la 9600 sau 115200 baud
+        serialPort = SerialPort.getCommPort(portName);
+        serialPort.setBaudRate(115200);
+        if (!serialPort.openPort())
+        {
+            System.err.println("Failed to open serial port: " + portName);
+        }
     }
 
     public void disconnect()
     {
-        // închide portul serial
+        if (serialPort != null && serialPort.isOpen())
+        {
+            serialPort.closePort();
+        }
     }
 
     public void showLegalMoves(List<Move> moves)
