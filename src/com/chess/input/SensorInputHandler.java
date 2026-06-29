@@ -138,6 +138,14 @@ public class SensorInputHandler implements InputHandler
             previousScan = scanBoard();
         }
 
+        // If the player to move is in check, light up their king in red.
+        // This stays lit (LED commands are additive) until the move completes
+        // and clearAll() is sent.
+        if (moveValidator.isInCheck(currentTurn, board))
+        {
+            ledController.showCheck(board.getKing(currentTurn).getPosition());
+        }
+
         InputState state = InputState.IDLE;
         Square selectedFrom        = null;  // square the moving piece was lifted from
         List<Move> legalMoves      = null;  // fully-legal moves for the selected piece
@@ -207,6 +215,12 @@ public class SensorInputHandler implements InputHandler
                         {
                             // Piece put back on its origin — cancel selection (no-op, same turn)
                             ledController.clearAll();
+                            // Re-show the check indicator wiped by clearAll(), so a player
+                            // who only peeked at their moves still sees their king in check.
+                            if (moveValidator.isInCheck(currentTurn, board))
+                            {
+                                ledController.showCheck(board.getKing(currentTurn).getPosition());
+                            }
                             selectedFrom  = null;
                             legalMoves    = null;
                             illegalLanding = null;
@@ -349,23 +363,43 @@ public class SensorInputHandler implements InputHandler
     // Flashes any displaced squares to guide the player.
     private void waitForBoardRestore(Board board)
     {
-        boolean restored = false;
-        while (!restored)
+        // Tracks which squares we've currently lit as mismatched, so we only
+        // send a command when a square's state actually changes — this lets the
+        // flash cycle run smoothly and turns off each square the moment it's fixed.
+        boolean[] flashing = new boolean[64];
+
+        while (true)
         {
             boolean[][] physical = scanBoard();
-            restored = matchesLogicalBoard(physical, board);
+            boolean restored = true;
 
-            if (!restored)
+            for (int row = 0; row < 8; row++)
             {
-                for (int row = 0; row < 8; row++)
+                for (int col = 0; col < 8; col++)
                 {
-                    for (int col = 0; col < 8; col++)
+                    int idx = row * 8 + col;
+                    boolean mismatch = physical[row][col] != board.getSquare(row, col).isOccupied();
+
+                    if (mismatch)
                     {
-                        if (physical[row][col] != board.getSquare(row, col).isOccupied())
+                        restored = false;
+                        if (!flashing[idx])
+                        {
                             ledController.showIllegal(board.getSquare(row, col));
+                            flashing[idx] = true;
+                        }
+                    }
+                    else if (flashing[idx])
+                    {
+                        // Square was wrong, now correct — turn off just this LED
+                        ledController.clearSquare(board.getSquare(row, col));
+                        flashing[idx] = false;
                     }
                 }
             }
+
+            if (restored)
+                break;
 
             try { Thread.sleep(100); }
             catch (InterruptedException e) { Thread.currentThread().interrupt(); }

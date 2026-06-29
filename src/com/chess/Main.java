@@ -6,7 +6,7 @@ import com.chess.input.InputHandler;
 
 public class Main
 {
-    // Serial port the Arduino is connected to (e.g. "/dev/ttyUSB0" on Linux)
+    // Serial port the Arduino is connected to 
     private static final String SERIAL_PORT = "/dev/ttyUSB0";
 
     public static void main(String[] args)

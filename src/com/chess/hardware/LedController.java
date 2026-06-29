@@ -61,6 +61,11 @@ public class LedController
         sendCommand("W:" + squareToIndex(square.getRow(), square.getCol()));
     }
 
+    public void clearSquare(Square square)
+    {
+        sendCommand("O:" + squareToIndex(square.getRow(), square.getCol()));
+    }
+
     public void clearAll()
     {
         sendCommand("C");
