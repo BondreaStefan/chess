@@ -139,12 +139,23 @@ public class EngineInputHandler implements InputHandler
         ledController.showSelectedPiece(move.getFrom());
         ledController.showLegalMoves(List.of(move));
 
+        Square to = move.getTo();
+        // On a capture the destination is occupied before and after, so occupancy
+        // alone can't confirm the swap. Require the destination to be seen empty at
+        // some point first (captured piece removed) before accepting completion.
+        // For non-captures it starts empty, so this is satisfied immediately.
+        boolean destinationCleared = !start[to.getRow()][to.getCol()];
+
         boolean[] flashing = new boolean[64];
 
         while (true)
         {
             boolean[][] now = scanner.scan();
-            boolean done = true;
+
+            if (!now[to.getRow()][to.getCol()])
+                destinationCleared = true;
+
+            boolean allMatch = true;
 
             for (int row = 0; row < 8; row++)
             {
@@ -153,11 +164,19 @@ public class EngineInputHandler implements InputHandler
                     int idx = row * 8 + col;
 
                     if (now[row][col] != expected[row][col])
-                        done = false;
+                        allMatch = false;
 
                     // A piece sitting where it should be empty, that was empty at the
-                    // start, is a wrong placement — flash it until removed.
-                    boolean wrong = now[row][col] && !expected[row][col] && !start[row][col];
+                    // start, is a wrong placement.
+                    boolean wrongPlacement = now[row][col] && !expected[row][col] && !start[row][col];
+
+                    // A piece removed from a square that should stay occupied is a wrong
+                    // removal (e.g. a piece bumped off by accident). The destination is
+                    // excluded since it legitimately goes empty mid-capture.
+                    boolean wrongRemoval = !now[row][col] && expected[row][col] && start[row][col]
+                        && !(row == to.getRow() && col == to.getCol());
+
+                    boolean wrong = wrongPlacement || wrongRemoval;
 
                     if (wrong && !flashing[idx])
                     {
@@ -172,7 +191,7 @@ public class EngineInputHandler implements InputHandler
                 }
             }
 
-            if (done)
+            if (allMatch && destinationCleared)
                 break;
 
             try { Thread.sleep(100); }
