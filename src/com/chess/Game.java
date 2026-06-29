@@ -18,7 +18,8 @@ public class Game
 {
     private Board board;
     private MoveValidator moveValidator;
-    private InputHandler inputHandler;
+    private InputHandler whiteHandler;
+    private InputHandler blackHandler;
     private ConsoleRenderer consoleRenderer;
     private Color currentTurn;
     private GameState state;
@@ -26,12 +27,13 @@ public class Game
     private List<Move> moveHistory = new ArrayList<>();
     private Map<String, Integer> positionCount = new HashMap<>();
 
-    public Game(InputHandler inputHandler)
+    public Game(InputHandler whiteHandler, InputHandler blackHandler)
     {
         board = new Board();
         board.setupInitialPosition();
         moveValidator = new MoveValidator();
-        this.inputHandler = inputHandler;
+        this.whiteHandler = whiteHandler;
+        this.blackHandler = blackHandler;
         consoleRenderer = new ConsoleRenderer();
         currentTurn = Color.WHITE;
         state = GameState.PLAYING;
@@ -42,7 +44,8 @@ public class Game
         consoleRenderer.render(board);
         while(state == GameState.PLAYING || state == GameState.CHECK)
         {
-            Move move = inputHandler.getNextMove(board, currentTurn);
+            InputHandler current = (currentTurn == Color.WHITE) ? whiteHandler : blackHandler;
+            Move move = current.getNextMove(board, currentTurn);
             Move matchedMove = moveValidator.getMatchedMove(board, move);
 
             if(matchedMove != null && moveValidator.isValidMove(board, matchedMove))
@@ -52,7 +55,7 @@ public class Game
                 if(board.isPromotionPending())
                 {
                     consoleRenderer.render(board);
-                    char choice = inputHandler.getPromotionChoice();
+                    char choice = current.getPromotionChoice();
                     board.promotePawn(board.getPromotionSquare(), currentTurn, choice);
                 }
                 currentTurn = currentTurn.opposite();
