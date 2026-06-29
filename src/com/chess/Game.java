@@ -12,7 +12,6 @@ import com.chess.input.InputHandler;
 import com.chess.model.Board;
 import com.chess.model.Color;
 import com.chess.model.GameState;
-import com.chess.model.pieces.Pawn;
 import com.chess.moves.Move;
 
 public class Game
@@ -26,7 +25,6 @@ public class Game
 
     private List<Move> moveHistory = new ArrayList<>();
     private Map<String, Integer> positionCount = new HashMap<>();
-    private int halfMoveClock = 0;
 
     public Game(InputHandler inputHandler)
     {
@@ -51,7 +49,6 @@ public class Game
             {
                 board.movePiece(matchedMove);
                 moveHistory.add(matchedMove);
-                updateHalfMoveClock(matchedMove);
                 if(board.isPromotionPending())
                 {
                     consoleRenderer.render(board);
@@ -96,7 +93,7 @@ public class Game
             System.out.println();
             System.out.println("Draw by threefold repetition!");
         }
-        else if(halfMoveClock >= 100)
+        else if(board.getHalfMoveClock() >= 100)
         {
             state = GameState.DRAW;
             System.out.println("Draw by fifty move rule!");
@@ -122,28 +119,25 @@ public class Game
         }
     }
 
+    // The repetition key is the FEN without the halfmove clock and fullmove
+    // number — those counters change even when the position is truly identical.
+    private String positionKey()
+    {
+        String fen = board.getFEN(currentTurn);
+        int lastSpace = fen.lastIndexOf(' ');
+        int prevSpace = fen.lastIndexOf(' ', lastSpace - 1);
+        return fen.substring(0, prevSpace);
+    }
+
     private void recordSnapshot()
     {
-        String snapshot = board.getFEN(currentTurn);
+        String snapshot = positionKey();
         positionCount.put(snapshot, positionCount.getOrDefault(snapshot, 0) + 1);
-        // System.out.println("FEN: " + snapshot + " count: " + positionCount.get(snapshot));
     }
 
     private boolean isThreefoldRepetition()
     {
-        String snapshot = board.getFEN(currentTurn);
+        String snapshot = positionKey();
         return positionCount.getOrDefault(snapshot, 0) >= 3;
-    }
-
-    private void updateHalfMoveClock(Move move)
-    {
-        if(move.isCapture() || move.getPiece() instanceof Pawn)
-        {
-            halfMoveClock = 0;
-        }
-        else
-        {
-            halfMoveClock++;
-        }
     }
 }

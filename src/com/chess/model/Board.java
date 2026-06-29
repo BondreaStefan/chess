@@ -17,6 +17,8 @@ public class Board
     private boolean promotionPending;
     private Square promotionSquare;
     private Pawn enPassantTarget;
+    private int halfMoveClock = 0;   // half-moves since last pawn move or capture (fifty-move rule)
+    private int fullMoveNumber = 1;  // starts at 1, increments after each Black move
 
     public Board() {
         squares = new Square[8][8];
@@ -72,6 +74,11 @@ public class Board
     public Pawn getEnPassantTarget()
     {
         return enPassantTarget;
+    }
+
+    public int getHalfMoveClock()
+    {
+        return halfMoveClock;
     }
 
     public boolean isPromotionPending() 
@@ -148,8 +155,24 @@ public class Board
         else
         {
             promotionPending = false;
-            promotionSquare = null;        
-        }   
+            promotionSquare = null;
+        }
+
+        // Halfmove clock: reset on a pawn move or capture, otherwise increment (fifty-move rule)
+        if(piece instanceof Pawn || move.isCapture())
+        {
+            halfMoveClock = 0;
+        }
+        else
+        {
+            halfMoveClock++;
+        }
+
+        // Fullmove number increments after Black completes a move
+        if(piece.getColor() == Color.BLACK)
+        {
+            fullMoveNumber++;
+        }
     }
 
     public void promotePawn(Square square, Color color, char choice)
@@ -222,10 +245,11 @@ public class Board
         }
         fen.append(castling.length() > 0 ? castling : "-");
 
-        // 4. en passant target square
+        // 4. en passant target square — the square *behind* the pawn that just
+        // double-pushed: rank 3 for a white pawn, rank 6 for a black pawn
         if(enPassantTarget != null)
         {
-            int epRow = enPassantTarget.getColor() == Color.WHITE ? 5 : 2;
+            int epRow = enPassantTarget.getColor() == Color.WHITE ? 2 : 5;
             int epCol = enPassantTarget.getPosition().getCol();
             char file = (char)('a' + epCol);
             fen.append(" " + file + (epRow + 1));
@@ -234,6 +258,9 @@ public class Board
         {
             fen.append(" -");
         }
+
+        // 5. halfmove clock and 6. fullmove number
+        fen.append(" " + halfMoveClock + " " + fullMoveNumber);
 
         return fen.toString();
     }
