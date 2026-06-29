@@ -22,7 +22,14 @@ public class LedController
         if (!serialPort.openPort())
         {
             System.err.println("Failed to open serial port: " + portName);
+            return;
         }
+
+        // Opening the port toggles DTR, which resets the Arduino Uno. The board
+        // then runs its bootloader for ~2s before setup() executes — any command
+        // sent during that window is lost. Wait for it to finish booting.
+        try { Thread.sleep(2000); }
+        catch (InterruptedException e) { Thread.currentThread().interrupt(); }
     }
 
     public void disconnect()
