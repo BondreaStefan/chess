@@ -1,5 +1,6 @@
 package com.chess;
 
+import com.chess.hardware.BoardScanner;
 import com.chess.hardware.LedController;
 import com.chess.input.ConsoleInputHandler;
 import com.chess.input.EngineInputHandler;
@@ -32,15 +33,26 @@ public class Main
             // Physical board: two players move pieces by hand
             ledController = new LedController(SERIAL_PORT);
             ledController.connect();
-            InputHandler sensor = new SensorInputHandler(new MoveValidator(), ledController);
+            BoardScanner scanner = new BoardScanner();
+            InputHandler sensor = new SensorInputHandler(scanner, new MoveValidator(), ledController);
             whiteHandler = sensor;
             blackHandler = sensor;
+        }
+        else if (mode.equals("--hardware-engine"))
+        {
+            // Physical board vs engine: human plays White on the board,
+            // Stockfish plays Black and the human moves its pieces for it
+            ledController = new LedController(SERIAL_PORT);
+            ledController.connect();
+            BoardScanner scanner = new BoardScanner();
+            whiteHandler = new SensorInputHandler(scanner, new MoveValidator(), ledController);
+            engine = new EngineInputHandler(ENGINE_PATH, ENGINE_MOVETIME_MS, scanner, ledController);
+            blackHandler = engine;
         }
         else if (mode.equals("--engine"))
         {
             // Console test: human plays White, Stockfish plays Black
             engine = new EngineInputHandler(ENGINE_PATH, ENGINE_MOVETIME_MS);
-            engine.start();
             whiteHandler = new ConsoleInputHandler();
             blackHandler = engine;
         }
@@ -51,6 +63,9 @@ public class Main
             whiteHandler = console;
             blackHandler = console;
         }
+
+        if (engine != null)
+            engine.start();
 
         Game game = new Game(whiteHandler, blackHandler);
         game.start();

@@ -4,12 +4,15 @@ import com.chess.model.Board;
 import com.chess.model.Color;
 import com.chess.model.Square;
 import com.chess.moves.Move;
+import com.chess.hardware.BoardScanner;
+import com.chess.hardware.LedController;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.List;
 
 /**
  * An InputHandler that delegates move selection to a UCI chess engine
@@ -20,6 +23,12 @@ public class EngineInputHandler implements InputHandler
     private final String enginePath;
     private final int moveTimeMs;
 
+    // Optional hardware collaborators. When present (hardware mode), the engine's
+    // move is shown on the board and the human is guided to execute it physically.
+    // When null (console mode), getNextMove just returns the computed move.
+    private final BoardScanner scanner;
+    private final LedController ledController;
+
     private Process process;
     private BufferedReader reader;
     private Writer writer;
@@ -28,10 +37,19 @@ public class EngineInputHandler implements InputHandler
     // Game queries this separately, after the move, via getPromotionChoice().
     private char promotionChoice = 'Q';
 
+    /** Console mode — the engine just computes moves. */
     public EngineInputHandler(String enginePath, int moveTimeMs)
+    {
+        this(enginePath, moveTimeMs, null, null);
+    }
+
+    /** Hardware mode — the engine also displays its move and waits for the human to play it. */
+    public EngineInputHandler(String enginePath, int moveTimeMs, BoardScanner scanner, LedController ledController)
     {
         this.enginePath = enginePath;
         this.moveTimeMs = moveTimeMs;
+        this.scanner = scanner;
+        this.ledController = ledController;
     }
 
     /** Launches the engine and performs the UCI handshake. */
@@ -95,12 +113,105 @@ public class EngineInputHandler implements InputHandler
                 return null;
 
             System.out.println("Engine plays: " + best);
-            return parseMove(best, board);
+            Move move = parseMove(best, board);
+
+            // On the physical board, light the move and wait for the human to play it
+            if (scanner != null && ledController != null)
+                waitForEngineMoveExecution(board, move);
+
+            return move;
         }
         catch (IOException e)
         {
             throw new RuntimeException("Engine communication failed", e);
         }
+    }
+
+    // Lights the engine's move (from = blue, to = green) and blocks until the human
+    // physically performs it. A piece placed on a square that should stay empty is
+    // flashed as an error until removed.
+    private void waitForEngineMoveExecution(Board board, Move move)
+    {
+        boolean[][] start = scanner.scan();
+        boolean[][] expected = computeExpected(start, move);
+
+        // Guidance: lift from the blue square, place on the green square
+        ledController.showSelectedPiece(move.getFrom());
+        ledController.showLegalMoves(List.of(move));
+
+        boolean[] flashing = new boolean[64];
+
+        while (true)
+        {
+            boolean[][] now = scanner.scan();
+            boolean done = true;
+
+            for (int row = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++)
+                {
+                    int idx = row * 8 + col;
+
+                    if (now[row][col] != expected[row][col])
+                        done = false;
+
+                    // A piece sitting where it should be empty, that was empty at the
+                    // start, is a wrong placement — flash it until removed.
+                    boolean wrong = now[row][col] && !expected[row][col] && !start[row][col];
+
+                    if (wrong && !flashing[idx])
+                    {
+                        ledController.showIllegal(board.getSquare(row, col));
+                        flashing[idx] = true;
+                    }
+                    else if (!wrong && flashing[idx])
+                    {
+                        ledController.clearSquare(board.getSquare(row, col));
+                        flashing[idx] = false;
+                    }
+                }
+            }
+
+            if (done)
+                break;
+
+            try { Thread.sleep(100); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+        }
+        ledController.clearAll();
+    }
+
+    // Builds the expected occupancy grid after the move, starting from the current
+    // physical state and applying the move's effects (incl. en passant and castling).
+    private boolean[][] computeExpected(boolean[][] start, Move move)
+    {
+        boolean[][] expected = new boolean[8][8];
+        for (int row = 0; row < 8; row++)
+            expected[row] = start[row].clone();
+
+        Square from = move.getFrom();
+        Square to   = move.getTo();
+        expected[from.getRow()][from.getCol()] = false;
+        expected[to.getRow()][to.getCol()] = true;
+
+        if (move.isEnPassant())
+            expected[from.getRow()][to.getCol()] = false;
+
+        if (move.isCastling())
+        {
+            int row = from.getRow();
+            if (to.getCol() == 6)   // king-side: rook h -> f
+            {
+                expected[row][7] = false;
+                expected[row][5] = true;
+            }
+            else                    // queen-side: rook a -> d
+            {
+                expected[row][0] = false;
+                expected[row][3] = true;
+            }
+        }
+        return expected;
     }
 
     // Converts a UCI move string ("e2e4", "e7e8q", "e1g1") into a rough Move.
