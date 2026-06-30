@@ -1,0 +1,28 @@
+# Electronic chess board — systemd unit.
+#
+# Install on the Raspberry Pi, run from inside the project directory:
+#   sudo cp deploy/chess.service /etc/systemd/system/chess.service
+#   sudo sed -i "s|__WORKDIR__|$(pwd)|; s|__JAVA__|$(which java)|" /etc/systemd/system/chess.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now chess.service
+#
+# View live output:   journalctl -u chess.service -f
+# Stop / disable:      sudo systemctl disable --now chess.service
+
+[Unit]
+Description=Electronic Chess Board
+After=multi-user.target
+
+[Service]
+Type=simple
+# Root is required because the pigpio GPIO plugin needs direct hardware access.
+User=root
+WorkingDirectory=__WORKDIR__
+# Give USB (the Arduino on /dev/ttyUSB0) a moment to enumerate after boot.
+ExecStartPre=/bin/sleep 5
+ExecStart=__JAVA__ -cp "out:lib/*" com.chess.Main --hardware
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
