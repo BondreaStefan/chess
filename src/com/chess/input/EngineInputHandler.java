@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.List;
 
 /**
  * An InputHandler that delegates move selection to a UCI chess engine
@@ -160,11 +159,24 @@ public class EngineInputHandler implements InputHandler
         boolean[][] start = scanner.scan();
         boolean[][] expected = computeExpected(start, move);
 
-        // Guidance: lift from the blue square, place on the green square
-        ledController.showSelectedPiece(move.getFrom());
-        ledController.showLegalMoves(List.of(move));
+        // Guidance: light every square the human must change. A square that must
+        // become empty (lift the piece) is blue; one that must become occupied
+        // (place a piece) is green. This covers the rook for castling and the
+        // captured pawn for en passant, not just the primary from/to.
+        for (int row = 0; row < 8; row++)
+        {
+            for (int col = 0; col < 8; col++)
+            {
+                if (start[row][col] && !expected[row][col])
+                    ledController.showSelectedPiece(board.getSquare(row, col));  // lift / remove (blue)
+                else if (!start[row][col] && expected[row][col])
+                    ledController.showTarget(board.getSquare(row, col));         // place (green)
+            }
+        }
 
         Square to = move.getTo();
+        // A capture's destination doesn't change occupancy, so light it explicitly.
+        ledController.showTarget(to);
         // On a capture the destination is occupied before and after, so occupancy
         // alone can't confirm the swap. Require the destination to be seen empty at
         // some point first (captured piece removed) before accepting completion.
