@@ -78,6 +78,21 @@ public class EngineInputHandler implements InputHandler
         }
     }
 
+    /** Resets the engine's internal state for a fresh game. */
+    public void newGame()
+    {
+        try
+        {
+            send("ucinewgame");
+            send("isready");
+            waitFor("readyok");
+        }
+        catch (IOException e)
+        {
+            throw new RuntimeException("Engine newgame failed", e);
+        }
+    }
+
     /** Tells the engine to quit and tears down the process. */
     public void stop()
     {

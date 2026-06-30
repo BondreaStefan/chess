@@ -25,41 +25,20 @@ public class Main
     {
         String mode = args.length > 0 ? args[0] : "";
 
+        if (mode.equals("--hardware"))
+        {
+            // Physical board with the on-board menu — runs games back-to-back.
+            runHardware();
+            return;
+        }
+
+        // Single-game modes (console / direct hardware-vs-engine)
         LedController ledController = null;
         EngineInputHandler engine = null;
         InputHandler whiteHandler;
         InputHandler blackHandler;
 
-        if (mode.equals("--hardware"))
-        {
-            // Physical board: the on-board startup menu chooses mode and color
-            ledController = new LedController(SERIAL_PORT);
-            ledController.connect();
-            BoardScanner scanner = new BoardScanner();
-            InputHandler sensor = new SensorInputHandler(scanner, new MoveValidator(), ledController);
-
-            StartupMenu.Result sel = new StartupMenu(scanner, ledController).run();
-            if (sel.mode == StartupMenu.Mode.HUMAN_VS_HUMAN)
-            {
-                whiteHandler = sensor;
-                blackHandler = sensor;
-            }
-            else
-            {
-                engine = new EngineInputHandler(ENGINE_PATH, ENGINE_MOVETIME_MS, scanner, ledController);
-                if (sel.humanColor == Color.WHITE)
-                {
-                    whiteHandler = sensor;
-                    blackHandler = engine;
-                }
-                else
-                {
-                    whiteHandler = engine;
-                    blackHandler = sensor;
-                }
-            }
-        }
-        else if (mode.equals("--hardware-engine"))
+        if (mode.equals("--hardware-engine"))
         {
             // Physical board vs engine: human plays White on the board,
             // Stockfish plays Black and the human moves its pieces for it
@@ -88,12 +67,63 @@ public class Main
         if (engine != null)
             engine.start();
 
-        Game game = new Game(whiteHandler, blackHandler);
-        game.start();
+        new Game(whiteHandler, blackHandler).start();
 
         if (ledController != null)
             ledController.disconnect();
         if (engine != null)
             engine.stop();
+    }
+
+    // Physical board: play games back-to-back. After each game ends, control
+    // returns to the startup menu, whose board-state check guides the player to
+    // reset the pieces to the starting position before the next game begins.
+    private static void runHardware()
+    {
+        LedController led = new LedController(SERIAL_PORT);
+        led.connect();
+        BoardScanner scanner = new BoardScanner();
+        MoveValidator validator = new MoveValidator();
+        InputHandler sensor = new SensorInputHandler(scanner, validator, led);
+        EngineInputHandler engine = new EngineInputHandler(ENGINE_PATH, ENGINE_MOVETIME_MS, scanner, led);
+        boolean engineStarted = false;
+
+        while (true)
+        {
+            StartupMenu.Result sel = new StartupMenu(scanner, led).run();
+
+            InputHandler whiteHandler;
+            InputHandler blackHandler;
+
+            if (sel.mode == StartupMenu.Mode.HUMAN_VS_HUMAN)
+            {
+                whiteHandler = sensor;
+                blackHandler = sensor;
+            }
+            else
+            {
+                // Start the engine the first time it's needed, then reuse it.
+                if (!engineStarted)
+                {
+                    engine.start();
+                    engineStarted = true;
+                }
+                engine.newGame();
+
+                if (sel.humanColor == Color.WHITE)
+                {
+                    whiteHandler = sensor;
+                    blackHandler = engine;
+                }
+                else
+                {
+                    whiteHandler = engine;
+                    blackHandler = sensor;
+                }
+            }
+
+            new Game(whiteHandler, blackHandler).start();
+            System.out.println("[game] Game over — returning to the startup menu.");
+        }
     }
 }
