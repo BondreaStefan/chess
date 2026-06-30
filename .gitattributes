@@ -1,0 +1,6 @@
+# Java sources: text, normalized to LF on every platform (Windows dev + Pi deploy)
+*.java text eol=lf
+
+# Binary libraries — never apply line-ending conversion
+*.jar binary
+*.so  binary
