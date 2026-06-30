@@ -5,6 +5,7 @@ import com.chess.model.Color;
 import com.chess.model.Square;
 import com.chess.moves.Move;
 import com.chess.hardware.BoardScanner;
+import com.chess.hardware.BoardSync;
 import com.chess.hardware.LedController;
 
 import java.io.BufferedReader;
@@ -28,6 +29,7 @@ public class EngineInputHandler implements InputHandler
     // When null (console mode), getNextMove just returns the computed move.
     private final BoardScanner scanner;
     private final LedController ledController;
+    private final BoardSync boardSync;
 
     private Process process;
     private BufferedReader reader;
@@ -50,6 +52,8 @@ public class EngineInputHandler implements InputHandler
         this.moveTimeMs = moveTimeMs;
         this.scanner = scanner;
         this.ledController = ledController;
+        this.boardSync = (scanner != null && ledController != null)
+            ? new BoardSync(scanner, ledController) : null;
     }
 
     /** Launches the engine and performs the UCI handshake. */
@@ -93,6 +97,12 @@ public class EngineInputHandler implements InputHandler
     @Override
     public Move getNextMove(Board board, Color currentTurn)
     {
+        // On the physical board, make sure the human finished executing their own
+        // move (e.g. the castling rook, or removing an en-passant-captured pawn)
+        // before the engine acts on the position.
+        if (boardSync != null && !boardSync.matches(scanner.scan(), board))
+            boardSync.waitUntilMatches(board);
+
         try
         {
             send("position fen " + board.getFEN(currentTurn));

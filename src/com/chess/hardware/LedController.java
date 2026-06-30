@@ -63,6 +63,11 @@ public class LedController
         sendCommand("S:" + squareToIndex(square.getRow(), square.getCol()));
     }
 
+    public void showTarget(Square square)
+    {
+        sendCommand("M:" + squareToIndex(square.getRow(), square.getCol()));
+    }
+
     public void showIllegal(Square square)
     {
         sendCommand("W:" + squareToIndex(square.getRow(), square.getCol()));

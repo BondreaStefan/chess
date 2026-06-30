@@ -8,6 +8,7 @@ import com.chess.model.pieces.Piece;
 import com.chess.moves.Move;
 import com.chess.moves.MoveValidator;
 import com.chess.hardware.BoardScanner;
+import com.chess.hardware.BoardSync;
 import com.chess.hardware.LedController;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.List;
 public class SensorInputHandler implements InputHandler
 {
     private BoardScanner scanner;
+    private BoardSync boardSync;
     private MoveValidator moveValidator;
     private LedController ledController;
 
@@ -30,6 +32,7 @@ public class SensorInputHandler implements InputHandler
     public SensorInputHandler(BoardScanner scanner, MoveValidator moveValidator, LedController ledController)
     {
         this.scanner = scanner;
+        this.boardSync = new BoardSync(scanner, ledController);
         this.moveValidator = moveValidator;
         this.ledController = ledController;
     }
@@ -42,9 +45,9 @@ public class SensorInputHandler implements InputHandler
         // Before accepting input, ensure the physical board matches the logical state.
         // This catches knocked-off pieces from the previous move (or en passant / castling
         // residue that the player still needs to tidy up physically).
-        if (!matchesLogicalBoard(previousScan, board))
+        if (!boardSync.matches(previousScan, board))
         {
-            waitForBoardRestore(board);
+            boardSync.waitUntilMatches(board);
             previousScan = scanner.scan();
         }
 
@@ -253,68 +256,6 @@ public class SensorInputHandler implements InputHandler
                 return move;
         }
         return null;
-    }
-
-    // Returns true if the physical sensor state matches the logical board
-    private boolean matchesLogicalBoard(boolean[][] physical, Board board)
-    {
-        for (int row = 0; row < 8; row++)
-        {
-            for (int col = 0; col < 8; col++)
-            {
-                if (physical[row][col] != board.getSquare(row, col).isOccupied())
-                    return false;
-            }
-        }
-        return true;
-    }
-
-    // Blocks until the physical board matches the logical board.
-    // Flashes any displaced squares to guide the player.
-    private void waitForBoardRestore(Board board)
-    {
-        // Tracks which squares we've currently lit as mismatched, so we only
-        // send a command when a square's state actually changes — this lets the
-        // flash cycle run smoothly and turns off each square the moment it's fixed.
-        boolean[] flashing = new boolean[64];
-
-        while (true)
-        {
-            boolean[][] physical = scanner.scan();
-            boolean restored = true;
-
-            for (int row = 0; row < 8; row++)
-            {
-                for (int col = 0; col < 8; col++)
-                {
-                    int idx = row * 8 + col;
-                    boolean mismatch = physical[row][col] != board.getSquare(row, col).isOccupied();
-
-                    if (mismatch)
-                    {
-                        restored = false;
-                        if (!flashing[idx])
-                        {
-                            ledController.showIllegal(board.getSquare(row, col));
-                            flashing[idx] = true;
-                        }
-                    }
-                    else if (flashing[idx])
-                    {
-                        // Square was wrong, now correct — turn off just this LED
-                        ledController.clearSquare(board.getSquare(row, col));
-                        flashing[idx] = false;
-                    }
-                }
-            }
-
-            if (restored)
-                break;
-
-            try { Thread.sleep(100); }
-            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
-        }
-        ledController.clearAll();
     }
 
     @Override

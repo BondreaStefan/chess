@@ -1,6 +1,7 @@
 package com.chess.input;
 
 import com.chess.hardware.BoardScanner;
+import com.chess.hardware.BoardSync;
 import com.chess.hardware.LedController;
 import com.chess.model.Board;
 import com.chess.model.Color;
@@ -39,19 +40,16 @@ public class StartupMenu
 
     private final BoardScanner scanner;
     private final LedController led;
+    private final BoardSync boardSync;
     private final Board reference;
-    private final boolean[][] initialOccupancy;
 
     public StartupMenu(BoardScanner scanner, LedController led)
     {
         this.scanner = scanner;
         this.led = led;
+        this.boardSync = new BoardSync(scanner, led);
         this.reference = new Board();
         this.reference.setupInitialPosition();
-        this.initialOccupancy = new boolean[8][8];
-        for (int r = 0; r < 8; r++)
-            for (int c = 0; c < 8; c++)
-                initialOccupancy[r][c] = reference.getSquare(r, c).isOccupied();
     }
 
     public Result run()
@@ -79,40 +77,7 @@ public class StartupMenu
     // flashing every mismatched square until it is corrected.
     private void checkBoardState()
     {
-        boolean[] flashing = new boolean[64];
-        while (true)
-        {
-            boolean[][] now = scanner.scan();
-            boolean ok = true;
-
-            for (int r = 0; r < 8; r++)
-            {
-                for (int c = 0; c < 8; c++)
-                {
-                    int idx = r * 8 + c;
-                    boolean mismatch = now[r][c] != initialOccupancy[r][c];
-                    if (mismatch)
-                        ok = false;
-
-                    if (mismatch && !flashing[idx])
-                    {
-                        led.showIllegal(reference.getSquare(r, c));
-                        flashing[idx] = true;
-                    }
-                    else if (!mismatch && flashing[idx])
-                    {
-                        led.clearSquare(reference.getSquare(r, c));
-                        flashing[idx] = false;
-                    }
-                }
-            }
-
-            if (ok)
-                break;
-
-            sleep(100);
-        }
-        led.clearAll();
+        boardSync.waitUntilMatches(reference);
     }
 
     private Result selectViaKings()
@@ -126,18 +91,17 @@ public class StartupMenu
 
         while (true)
         {
-            // Re-assert the guidance every cycle. A single send right after the
-            // board-check clear can be dropped by the Arduino while it refreshes
-            // the strip, so re-sending keeps the four squares reliably lit:
-            // the two kings to lift (e1, e8) and where to place them (e4, d5).
-            led.showSelectedPiece(e1);
-            led.showSelectedPiece(e8);
-            led.showSelectedPiece(e4);
-            led.showSelectedPiece(d5);
-
             boolean[][] now = scanner.scan();
             boolean white = now[E4_ROW][E4_COL];
             boolean black = now[D5_ROW][D5_COL];
+
+            // Re-assert the guidance every cycle (a single send can be dropped while
+            // the Arduino refreshes the strip). Kings to lift stay blue; a target
+            // turns green the moment a king is detected on it — confirming the sensor.
+            led.showSelectedPiece(e1);
+            led.showSelectedPiece(e8);
+            if (white) led.showTarget(e4); else led.showSelectedPiece(e4);
+            if (black) led.showTarget(d5); else led.showSelectedPiece(d5);
 
             if (white && black)
             {
