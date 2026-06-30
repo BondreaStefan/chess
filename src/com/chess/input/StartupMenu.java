@@ -117,26 +117,27 @@ public class StartupMenu
 
     private Result selectViaKings()
     {
-        Square e4 = reference.getSquare(E4_ROW, E4_COL);
-        Square d5 = reference.getSquare(D5_ROW, D5_COL);
+        Square e1 = reference.getSquare(0, 4);          // white king home (lift this)
+        Square e8 = reference.getSquare(7, 4);          // black king home (lift this)
+        Square e4 = reference.getSquare(E4_ROW, E4_COL); // white king target
+        Square d5 = reference.getSquare(D5_ROW, D5_COL); // black king target
+
+        long firstKingTime = 0;   // millis when the first king landed; 0 = none yet
 
         while (true)
         {
-            // Prompt: light the two target squares
+            // Re-assert the guidance every cycle. A single send right after the
+            // board-check clear can be dropped by the Arduino while it refreshes
+            // the strip, so re-sending keeps the four squares reliably lit:
+            // the two kings to lift (e1, e8) and where to place them (e4, d5).
+            led.showSelectedPiece(e1);
+            led.showSelectedPiece(e8);
             led.showSelectedPiece(e4);
             led.showSelectedPiece(d5);
 
-            // Phase 1: wait until at least one king is placed on its target square
-            boolean white, black;
-            boolean[][] now;
-            do
-            {
-                now = scanner.scan();
-                white = now[E4_ROW][E4_COL];
-                black = now[D5_ROW][D5_COL];
-                sleep(100);
-            }
-            while (!white && !black);
+            boolean[][] now = scanner.scan();
+            boolean white = now[E4_ROW][E4_COL];
+            boolean black = now[D5_ROW][D5_COL];
 
             if (white && black)
             {
@@ -144,30 +145,24 @@ public class StartupMenu
                 return new Result(Mode.HUMAN_VS_HUMAN, Color.WHITE);
             }
 
-            // Phase 2: one king is down — wait up to 5s for the other (=> human vs human)
-            long deadline = System.currentTimeMillis() + SECOND_KING_WAIT_MS;
-            while (System.currentTimeMillis() < deadline)
+            if (white || black)
             {
-                now = scanner.scan();
-                white = now[E4_ROW][E4_COL];
-                black = now[D5_ROW][D5_COL];
-
-                if (white && black)
+                // One king is down — start (or check) the 5s window for the second.
+                if (firstKingTime == 0)
+                    firstKingTime = System.currentTimeMillis();
+                else if (System.currentTimeMillis() - firstKingTime >= SECOND_KING_WAIT_MS)
                 {
                     led.clearAll();
-                    return new Result(Mode.HUMAN_VS_HUMAN, Color.WHITE);
+                    return new Result(Mode.HUMAN_VS_ENGINE, white ? Color.WHITE : Color.BLACK);
                 }
-                sleep(100);
+            }
+            else
+            {
+                // Both squares empty again (player removed the king) — reset the wait.
+                firstKingTime = 0;
             }
 
-            // 5s elapsed with a single king placed => human vs engine
-            led.clearAll();
-            if (white)
-                return new Result(Mode.HUMAN_VS_ENGINE, Color.WHITE);
-            if (black)
-                return new Result(Mode.HUMAN_VS_ENGINE, Color.BLACK);
-
-            // Neither king still placed (player removed it) — re-prompt.
+            sleep(100);
         }
     }
 
