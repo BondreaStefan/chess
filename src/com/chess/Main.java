@@ -6,6 +6,8 @@ import com.chess.input.ConsoleInputHandler;
 import com.chess.input.EngineInputHandler;
 import com.chess.input.InputHandler;
 import com.chess.input.SensorInputHandler;
+import com.chess.input.StartupMenu;
+import com.chess.model.Color;
 import com.chess.moves.MoveValidator;
 
 public class Main
@@ -30,13 +32,32 @@ public class Main
 
         if (mode.equals("--hardware"))
         {
-            // Physical board: two players move pieces by hand
+            // Physical board: the on-board startup menu chooses mode and color
             ledController = new LedController(SERIAL_PORT);
             ledController.connect();
             BoardScanner scanner = new BoardScanner();
             InputHandler sensor = new SensorInputHandler(scanner, new MoveValidator(), ledController);
-            whiteHandler = sensor;
-            blackHandler = sensor;
+
+            StartupMenu.Result sel = new StartupMenu(scanner, ledController).run();
+            if (sel.mode == StartupMenu.Mode.HUMAN_VS_HUMAN)
+            {
+                whiteHandler = sensor;
+                blackHandler = sensor;
+            }
+            else
+            {
+                engine = new EngineInputHandler(ENGINE_PATH, ENGINE_MOVETIME_MS, scanner, ledController);
+                if (sel.humanColor == Color.WHITE)
+                {
+                    whiteHandler = sensor;
+                    blackHandler = engine;
+                }
+                else
+                {
+                    whiteHandler = engine;
+                    blackHandler = sensor;
+                }
+            }
         }
         else if (mode.equals("--hardware-engine"))
         {
