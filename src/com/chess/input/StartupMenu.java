@@ -57,12 +57,19 @@ public class StartupMenu
     public Result run()
     {
         // 1. Ensure the board is set up in the standard starting position.
+        System.out.println("[menu] Set up all pieces in the starting position...");
         checkBoardState();
+        System.out.println("[menu] Board ready.");
 
         // 2. Let the player choose via the kings.
+        System.out.println("[menu] Choose: white king -> e4 (play White), "
+            + "black king -> d5 (play Black), or both kings = human vs human.");
         Result result = selectViaKings();
+        System.out.println("[menu] Selected: " + result.mode
+            + (result.mode == Mode.HUMAN_VS_ENGINE ? " (human plays " + result.humanColor + ")" : ""));
 
         // 3. Put the kings back — the board must be standard before the game starts.
+        System.out.println("[menu] Put the kings back; game starts when the board is set up.");
         checkBoardState();
 
         return result;
