@@ -8,7 +8,7 @@ Built as the software/hardware core of a bachelor's thesis on an intelligent che
 ![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%204-c51a4a?logo=raspberrypi&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
-![Demo](docs/demo.gif)
+![Demo](demo.gif)
 
 ## Features
 
