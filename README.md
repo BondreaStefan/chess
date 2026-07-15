@@ -20,10 +20,10 @@ Built as the software/hardware core of a bachelor's thesis on an intelligent che
 ## How it works
 
 ```
-┌─────────────────┐        serial (115200 baud)        ┌──────────────┐
+┌─────────────────┐        serial (115200 baud)           ┌──────────────┐
 │  Raspberry Pi 4  │ ───────────────────────────────────▶ │  Arduino Uno │
 │                  │                                      │              │
-│  Game engine     │◀──── piece lift / place events ─────│  Reed switch │
+│  Game engine     │◀──── piece lift / place events ───── │  Reed switch │
 │  Move validator  │        (via multiplexers)            │  scan + LEDs │
 │  Board state     │                                      └──────┬───────┘
 └──────────────────┘                                             │
