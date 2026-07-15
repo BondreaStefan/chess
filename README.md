@@ -1,4 +1,4 @@
-# ♟️ Chess — Intelligent Chessboard
+# ♟️ Chess — Electronic Chessboard
 
 A full Java chess engine paired with a physical, sensor-driven chessboard. Moves made by hand on the board are detected via reed switches, validated by the engine, and reflected back through an addressable LED strip — legal moves glow, illegal moves flash a warning, and a king in check is highlighted directly on the square.
 
